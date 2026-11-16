@@ -1,0 +1,86 @@
+# (주)준인산업 거래명세서 관리시스템 — 설치 안내
+
+직원 아이디·비밀번호로 로그인하는 사내 웹사이트입니다.
+
+- **거래명세서:** 목록·검색, 사진·PDF 자동 판독 등록, 직접 입력, 엑셀 가져오기·내보내기, 월별·거래처별 집계
+- **등록 업체 관리:** 기본 정보, 담당자 연락처, 거래 조건, 업체별 거래 내역
+- **계정 관리:** 관리자·입력자·조회자 권한, 사용 중지, 비밀번호 변경
+
+필요한 서비스는 네 가지입니다. 모두 웹에서 가입하며, 프로그램을 설치할 필요는 없습니다.
+
+| 서비스 | 하는 일 | 비용 |
+|---|---|---|
+| GitHub | 코드 보관 | 무료 |
+| Supabase | 데이터·원본 파일 보관 | 무료 요금제로 시작 |
+| Vercel | 사이트 운영(주소 제공) | 무료 요금제로 시작 |
+| Anthropic Console | 사진·PDF 자동 판독 | 사용한 만큼 결제 |
+
+---
+
+## 1단계. 코드를 GitHub 저장소에 올리기
+
+1. 받은 압축 파일을 풉니다.
+2. GitHub의 `juninbuy` 저장소 화면에서 **기존 파일 업로드(uploading an existing file)** 링크를 누릅니다.
+3. 압축을 푼 폴더 **안의 내용 전부**(app, components, lib, supabase 폴더와 package.json 등)를 끌어다 놓습니다.
+   - 폴더 자체가 아니라 폴더 안의 내용을 끌어다 놓아야 합니다. 저장소 첫 화면에 package.json이 바로 보이면 맞게 올라간 것입니다.
+   - `.gitignore`, `.env.example`처럼 점으로 시작하는 파일이 빠져도 사이트는 동작합니다.
+4. 아래쪽 **Commit changes** 버튼을 누릅니다.
+
+## 2단계. Supabase 데이터베이스 만들기
+
+1. https://supabase.com 에 가입하고 **New project**를 누릅니다.
+2. 이름은 `junin-slips`, Region은 **Northeast Asia (Seoul)** 을 고릅니다. Database Password는 아무 값이나 넣고 따로 적어 둡니다.
+3. 프로젝트가 만들어지면 왼쪽 메뉴의 **SQL Editor**를 엽니다.
+4. 이 폴더의 `supabase/schema.sql` 파일 내용을 전부 복사해 붙여 넣고 **Run**을 누릅니다. "Success"가 나오면 됩니다.
+5. **Project Settings**에서 다음 두 값을 복사해 둡니다.
+   - **Project URL:** `https://xxxx.supabase.co` 형태
+   - **secret 키:** API Keys 화면에 있습니다. 예전 화면에서는 `service_role` 키입니다.
+
+   secret 키는 회사 금고 열쇠와 같습니다. 다른 사람에게 보내거나 공개된 곳에 붙여 넣지 마십시오.
+
+## 3단계. 자동 판독용 Anthropic API 키 만들기
+
+1. https://console.anthropic.com 에 회사 계정으로 가입합니다.
+2. **Billing**에서 결제 카드를 등록하고 크레딧을 충전합니다.
+3. **API Keys**에서 **Create Key**를 눌러 키를 만들고 복사해 둡니다. `sk-ant-`로 시작합니다.
+
+## 4단계. Vercel로 사이트 띄우기
+
+1. https://vercel.com 에 **Continue with GitHub**로 가입합니다.
+2. **Add New → Project**를 누르고 `juninbuy` 저장소의 **Import**를 누릅니다.
+3. **Environment Variables**에 아래 5개를 하나씩 입력합니다.
+
+| Name | Value |
+|---|---|
+| `SUPABASE_URL` | 2단계의 Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | 2단계의 secret 키 |
+| `SESSION_SECRET` | 영문·숫자를 섞은 무작위 40자 이상 (예: 비밀번호 생성기로 만든 값) |
+| `ANTHROPIC_API_KEY` | 3단계의 API 키 |
+| `ANTHROPIC_MODEL` | `claude-sonnet-5-5` |
+
+4. **Deploy**를 누릅니다. 1~3분 뒤 `https://juninbuy.vercel.app` 같은 주소가 생깁니다.
+
+## 5단계. 관리자 계정 만들기 (최초 1회)
+
+1. `사이트주소/setup`으로 접속합니다. 예: `https://juninbuy.vercel.app/setup`
+2. 관리자 이름, 아이디, 비밀번호를 정해 만듭니다. 계정이 하나라도 생기면 이 화면은 다시 열리지 않습니다.
+3. 로그인한 뒤 **계정·회사 관리**에서 다음을 처리합니다.
+   - 우리 회사 사업자등록번호를 입력합니다. 자동 판독에서 매입·매출을 구분할 때 씁니다.
+   - 직원 계정을 만들어 아이디와 초기 비밀번호를 전달합니다. 직원은 오른쪽 위 이름을 눌러 비밀번호를 바꿀 수 있습니다.
+
+---
+
+## 권한
+
+| 권한 | 할 수 있는 일 |
+|---|---|
+| 관리자 | 모든 기능, 직원 계정과 회사 정보 관리 |
+| 입력자 | 거래명세서·업체 등록, 수정, 삭제 |
+| 조회자 | 보기, 엑셀 내보내기 |
+
+## 참고
+
+- 사진은 올릴 때 자동으로 줄여서 저장합니다. PDF는 한 파일이 4MB 이하여야 합니다.
+- 거래명세서를 저장하면 거래처가 등록 업체 목록에 자동으로 추가됩니다. 사업자번호가 같으면 같은 업체로 봅니다.
+- 코드를 고친 뒤 GitHub에 다시 올리면 Vercel이 자동으로 새 버전을 띄웁니다.
+- 배포 중 오류가 나면 Vercel의 **Deployments → 실패한 항목 → Build Logs** 내용을 복사해 전달해 주십시오.
