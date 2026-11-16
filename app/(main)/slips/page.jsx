@@ -67,8 +67,8 @@ export default function SlipList() {
   function exportXlsx() {
     const span = from || to ? `${from || '처음'}~${to || '현재'}` : '전체';
     downloadXlsx((X) => {
-      const s1 = [['일자', '구분', '거래처', '사업자번호', '전표번호', '품목', '공급가액', '세액', '합계금액', '비고', '원본 수', '등록자']];
-      rows.forEach((r) => s1.push([r.date, r.kind, r.vendor_name, r.biz_no, r.doc_no, itemSummary(r.items), Number(r.supply), Number(r.vat), Number(r.total), r.memo, (r.attachments || []).length, r.created_by_name]));
+      const s1 = [['일자', '구분', '거래처', '사업자번호', '전표번호', '품목', '공급가액', '세액', '합계금액', '비고', '원본 수', '등록자', '회계 반영']];
+      rows.forEach((r) => s1.push([r.date, r.kind, r.vendor_name, r.biz_no, r.doc_no, itemSummary(r.items), Number(r.supply), Number(r.vat), Number(r.total), r.memo, (r.attachments || []).length, r.created_by_name, r.posted ? '반영' : '']));
       s1.push(['합계', '', '', '', '', `${rows.length}건`, tt.supply, tt.vat, tt.total]);
       const s2 = [['일자', '구분', '거래처', '전표번호', '품명', '규격', '수량', '단위', '단가', '공급가액', '세액']];
       rows.forEach((r) => (r.items || []).forEach((i) => s2.push([r.date, r.kind, r.vendor_name, r.doc_no, i.name, i.spec, i.qty ?? '', i.unit, i.price ?? '', i.supply, i.vat])));
@@ -134,7 +134,7 @@ export default function SlipList() {
             {rows.map((r) => (
               <tr key={r.id} className="click" tabIndex={0} onClick={() => router.push(`/slips/${r.id}`)} onKeyDown={(e) => e.key === 'Enter' && router.push(`/slips/${r.id}`)}>
                 <td className={`num ${r.kind === '매출' ? 'k-sale' : 'k-buy'}`} style={{ textAlign: 'left' }}>{r.date}</td>
-                <td><KindPill kind={r.kind} /></td>
+                <td><KindPill kind={r.kind} />{r.posted && <> <span className="pill done">반영</span></>}</td>
                 <td>{r.vendor_name}</td>
                 <td className="muted">{r.doc_no}</td>
                 <td>{itemSummary(r.items)}</td>

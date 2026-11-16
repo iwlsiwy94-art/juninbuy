@@ -51,8 +51,9 @@ export default function SlipDetail({ params }) {
         </h1>
         <div className="right">
           <Link className="btn" href="/slips">목록</Link>
-          {canEdit(user) && <button className="btn danger" type="button" onClick={remove}>삭제</button>}
-          {canEdit(user) && <button className="btn primary" type="button" onClick={() => setEditing(true)}>수정</button>}
+          {canEdit(user) && !slip.posted && <button className="btn danger" type="button" onClick={remove}>삭제</button>}
+          {canEdit(user) && !slip.posted && <button className="btn primary" type="button" onClick={() => setEditing(true)}>수정</button>}
+          {slip.posted && <span className="pill done" title="회계 반영된 명세서는 전표를 반영 취소해야 고칠 수 있습니다.">회계 반영됨</span>}
         </div>
       </div>
 

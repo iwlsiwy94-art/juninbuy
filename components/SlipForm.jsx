@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { api, prepareFile, fileUrl, isAcceptable } from '@/components/api';
 import { Seg } from '@/components/bits';
 import { toNum, vatOf, won, today, formatBiz } from '@/lib/util';
+import { findPrice } from '@/lib/accounting';
 
 const NUMS = ['qty', 'price', 'supply', 'vat'];
 const s = (v) => (v === null || v === undefined ? '' : String(v));
@@ -33,9 +34,56 @@ export default function SlipForm({ initial, notes, onSaved, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
+  const [prices, setPrices] = useState([]);
+  const [autoNote, setAutoNote] = useState('');
+
   useEffect(() => {
     api('/api/vendors').then((d) => setVendors(d.vendors.filter((v) => !v.inactive))).catch(() => {});
+    api('/api/prices').then((d) => setPrices(d.prices || [])).catch(() => {});
   }, []);
+
+  // 단가가 빈 품목을 단가표로 채웁니다. (단가가 비고 공급가액만 있으면 공급가액÷수량으로 계산)
+  function fillPrices(list = prices, silent = false) {
+    if (!list.length && silent) return;
+    let filled = 0;
+    {
+      const p = f;
+      const vendor = vendors.find((v) => v.name === p.vendor_name);
+      const items = p.items.map((x) => {
+        if (String(x.price).trim() !== '' || !x.name) return x;
+        const it = { ...x };
+        const qty = toNum(it.qty), sup = toNum(it.supply);
+        if (sup != null && qty) {
+          it.price = String(Math.round((sup / qty) * 100) / 100);
+          it._auto = '공급가액÷수량';
+          filled++;
+          return it;
+        }
+        const hit = findPrice(list, { kind: p.kind, vendorId: vendor?.id, vendorName: p.vendor_name, name: it.name, spec: it.spec, date: p.date });
+        if (!hit) return x;
+        it.price = String(hit.price);
+        it._auto = hit.vendor_id ? '업체 단가표' : '공통 단가표';
+        if (!it.unit && hit.unit) it.unit = hit.unit;
+        if (qty != null) {
+          it.supply = String(Math.round(qty * Number(hit.price)));
+          if (autoVat) it.vat = String(vatOf(toNum(it.supply)));
+        }
+        filled++;
+        return it;
+      });
+      if (filled) setF({ ...p, items });
+    }
+    if (filled) setAutoNote(`빈 단가 ${filled}개를 채웠습니다. 초록색 표시를 확인해 주십시오.`);
+    else if (!silent) setAutoNote('단가표에서 찾은 빈 단가가 없습니다.');
+  }
+
+  // 단가표·업체 목록을 불러오면 처음 한 번 자동으로 채움 (사진 판독 결과처럼 단가가 빠진 경우)
+  const [autoDone, setAutoDone] = useState(false);
+  useEffect(() => {
+    if (autoDone || !prices.length) return;
+    setAutoDone(true);
+    fillPrices(prices, true);
+  }, [prices, vendors]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
@@ -51,6 +99,7 @@ export default function SlipForm({ initial, notes, onSaved, onCancel }) {
       const items = p.items.map((x) => ({ ...x }));
       const it = items[i];
       it[k] = val;
+      if (k === 'price') delete it._auto;
       if ((k === 'qty' || k === 'price') && toNum(it.qty) != null && toNum(it.price) != null) {
         it.supply = String(Math.round(toNum(it.qty) * toNum(it.price)));
       }
@@ -110,7 +159,7 @@ export default function SlipForm({ initial, notes, onSaved, onCancel }) {
         </div>
         <div className="field"><label htmlFor="sf-date">거래일자</label><input id="sf-date" type="date" value={f.date} onChange={(e) => set('date', e.target.value)} /></div>
         <div className="field"><label htmlFor="sf-vendor">거래처 상호</label>
-          <input id="sf-vendor" type="text" list="sf-vendors" autoComplete="off" value={f.vendor_name} onChange={(e) => setVendor(e.target.value)} />
+          <input id="sf-vendor" type="text" list="sf-vendors" autoComplete="off" value={f.vendor_name} onChange={(e) => setVendor(e.target.value)} onBlur={() => fillPrices(prices, true)} />
           <datalist id="sf-vendors">{vendors.map((v) => <option key={v.id} value={v.name} />)}</datalist>
         </div>
         <div className="field"><label htmlFor="sf-biz">거래처 사업자번호</label><input id="sf-biz" type="text" placeholder="000-00-00000" value={f.biz_no} onChange={(e) => set('biz_no', e.target.value)} onBlur={(e) => set('biz_no', formatBiz(e.target.value))} /></div>
@@ -124,12 +173,16 @@ export default function SlipForm({ initial, notes, onSaved, onCancel }) {
           <tbody>
             {f.items.map((it, i) => (
               <tr key={i}>
-                <td className="w-name"><input type="text" aria-label={`품명 ${i + 1}`} value={it.name} onChange={(e) => setItem(i, 'name', e.target.value)} /></td>
-                <td className="w-spec"><input type="text" aria-label={`규격 ${i + 1}`} value={it.spec} onChange={(e) => setItem(i, 'spec', e.target.value)} /></td>
+                <td className="w-name"><input type="text" aria-label={`품명 ${i + 1}`} value={it.name} onChange={(e) => setItem(i, 'name', e.target.value)} onBlur={() => fillPrices(prices, true)} /></td>
+                <td className="w-spec"><input type="text" aria-label={`규격 ${i + 1}`} value={it.spec} onChange={(e) => setItem(i, 'spec', e.target.value)} onBlur={() => fillPrices(prices, true)} /></td>
                 <td className="w-n"><input type="text" inputMode="decimal" className="numin" aria-label={`수량 ${i + 1}`} value={it.qty} onChange={(e) => setItem(i, 'qty', e.target.value)} /></td>
                 <td className="w-u"><input type="text" aria-label={`단위 ${i + 1}`} value={it.unit} onChange={(e) => setItem(i, 'unit', e.target.value)} /></td>
                 {NUMS.slice(1).map((k) => (
-                  <td key={k} className="w-m"><input type="text" inputMode="decimal" className="numin" aria-label={`${{ price: '단가', supply: '공급가액', vat: '세액' }[k]} ${i + 1}`} value={it[k]} onChange={(e) => setItem(i, k, e.target.value)} /></td>
+                  <td key={k} className="w-m">
+                    <input type="text" inputMode="decimal" className="numin" aria-label={`${{ price: '단가', supply: '공급가액', vat: '세액' }[k]} ${i + 1}`} value={it[k]} onChange={(e) => setItem(i, k, e.target.value)}
+                      style={k === 'price' && it._auto ? { borderColor: 'var(--ok)', background: 'var(--ok-bg)' } : undefined} />
+                    {k === 'price' && it._auto && <span className="auto-mark">{it._auto}</span>}
+                  </td>
                 ))}
                 <td><button className="btn small" type="button" onClick={() => setF((p) => ({ ...p, items: p.items.length > 1 ? p.items.filter((_, j) => j !== i) : [blankItem()] }))}>삭제</button></td>
               </tr>
@@ -142,6 +195,8 @@ export default function SlipForm({ initial, notes, onSaved, onCancel }) {
         <div className="row" style={{ alignItems: 'center' }}>
           <button className="btn small" type="button" onClick={() => setF((p) => ({ ...p, items: [...p.items, blankItem()] }))}>품목 추가</button>
           <label className="check"><input type="checkbox" checked={autoVat} onChange={(e) => toggleAutoVat(e.target.checked)} /> 세액 10% 자동 계산</label>
+          <button className="btn small" type="button" onClick={() => fillPrices(prices, false)}>빈 단가 단가표로 채우기</button>
+          {autoNote && <span className="status">{autoNote}</span>}
         </div>
         <div className="totals">
           <div><span className="k">공급가액</span><span className="v">{won(totals.supply)}</span></div>

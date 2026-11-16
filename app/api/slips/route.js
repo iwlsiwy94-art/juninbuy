@@ -16,6 +16,8 @@ export async function GET(req) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(p.get('to') || '')) q = q.lte('date', p.get('to'));
     if (['매입', '매출'].includes(p.get('kind'))) q = q.eq('kind', p.get('kind'));
     if (p.get('vendor_id')) q = q.eq('vendor_id', p.get('vendor_id'));
+    if (p.get('posted') === '0') q = q.eq('posted', false);
+    if (p.get('posted') === '1') q = q.eq('posted', true);
     const { data, error: e } = await q;
     if (e) throw e;
     const names = await userNames(db);

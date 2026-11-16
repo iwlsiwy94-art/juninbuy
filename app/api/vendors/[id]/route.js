@@ -13,7 +13,7 @@ export async function GET(_req, { params }) {
     if (!v) return fail('업체를 찾을 수 없습니다.', 404);
     const { data: slips, error: e } = await db
       .from('slips')
-      .select('id,kind,date,doc_no,items,supply,vat,total,attachments')
+      .select('id,kind,date,doc_no,items,supply,vat,total,attachments,posted')
       .eq('vendor_id', params.id)
       .order('date', { ascending: false })
       .limit(5000);

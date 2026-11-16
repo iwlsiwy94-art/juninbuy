@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { api } from '@/components/api';
 import { VENDOR_KINDS, formatBiz } from '@/lib/util';
+import { DEBIT_ACCOUNTS } from '@/lib/accounting';
 
-const EMPTY = { name: '', kind: '매입처', biz_no: '', ceo: '', address: '', biz_type: '', biz_item: '', contact_name: '', contact_phone: '', contact_email: '', payment_terms: '', bank_memo: '', memo: '', inactive: false };
+const EMPTY = { account: '', name: '', kind: '매입처', biz_no: '', ceo: '', address: '', biz_type: '', biz_item: '', contact_name: '', contact_phone: '', contact_email: '', payment_terms: '', bank_memo: '', memo: '', inactive: false };
 
 export default function VendorForm({ vendor, onSaved, onCancel }) {
   const [v, setV] = useState({ ...EMPTY, ...(vendor || {}) });
@@ -55,6 +56,12 @@ export default function VendorForm({ vendor, onSaved, onCancel }) {
       <div className="grid-form">
         {F('payment_terms', '결제 조건', { placeholder: '예: 월말 마감 익월 25일 현금' })}
         {F('bank_memo', '계좌 메모', { placeholder: '예: 국민 000-00-0000 (예금주)' })}
+        <div className="field"><label htmlFor="vf-acct">회계 반영 기본 계정 (매입)</label>
+          <select id="vf-acct" value={v.account || ''} onChange={set('account')}>
+            <option value="">원재료 (기본)</option>
+            {DEBIT_ACCOUNTS.filter((a) => a !== '원재료').map((a) => <option key={a}>{a}</option>)}
+          </select>
+        </div>
         <div className="field wide"><label htmlFor="vf-memo">메모</label><textarea id="vf-memo" value={v.memo} onChange={set('memo')} /></div>
         <label className="check"><input type="checkbox" checked={v.inactive} onChange={set('inactive')} /> 거래 중지 (등록 화면의 거래처 목록에서 숨김)</label>
       </div>

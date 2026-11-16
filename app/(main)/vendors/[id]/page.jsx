@@ -76,6 +76,7 @@ export default function VendorDetail({ params }) {
             <div><span>이메일</span>{vendor.contact_email ? <a href={`mailto:${vendor.contact_email}`}>{vendor.contact_email}</a> : '—'}</div>
             <div><span>결제 조건</span>{vendor.payment_terms || '—'}</div>
             <div><span>계좌 메모</span>{vendor.bank_memo || '—'}</div>
+            <div><span>회계 반영 계정</span>{vendor.account || '원재료'}</div>
           </div>
           {vendor.memo && <p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}><span className="muted" style={{ fontSize: 12, display: 'block' }}>메모</span>{vendor.memo}</p>}
         </div>
@@ -102,7 +103,7 @@ export default function VendorDetail({ params }) {
             {!shown.length && <tr><td colSpan={7} className="empty">거래 내역이 없습니다.</td></tr>}
             {shown.map((s) => (
               <tr key={s.id} className="click" tabIndex={0} onClick={() => router.push(`/slips/${s.id}`)} onKeyDown={(e) => e.key === 'Enter' && router.push(`/slips/${s.id}`)}>
-                <td className={s.kind === '매출' ? 'k-sale' : 'k-buy'}>{s.date}</td><td><KindPill kind={s.kind} /></td><td className="muted">{s.doc_no}</td>
+                <td className={s.kind === '매출' ? 'k-sale' : 'k-buy'}>{s.date}</td><td><KindPill kind={s.kind} />{s.posted && <> <span className="pill done">반영</span></>}</td><td className="muted">{s.doc_no}</td>
                 <td>{itemSummary(s.items)}</td><td className="num">{won(s.supply)}</td><td className="num">{won(s.vat)}</td><td className="num"><b>{won(s.total)}</b></td>
               </tr>
             ))}

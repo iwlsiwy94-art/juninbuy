@@ -4,6 +4,8 @@ import { normalizeSlip, ensureVendor, userNames, InputError } from '@/lib/slips'
 
 export const dynamic = 'force-dynamic';
 
+const POSTED_MSG = '회계 반영된 명세서는 수정·삭제할 수 없습니다. 관리자가 해당 전표를 반영 취소한 뒤 고쳐 주십시오.';
+
 async function load(db, id) {
   const { data } = await db.from('slips').select('*').eq('id', id).maybeSingle();
   return data;
@@ -30,6 +32,7 @@ export async function PUT(req, { params }) {
     const db = sb();
     const old = await load(db, params.id);
     if (!old) return fail('거래명세서를 찾을 수 없습니다.', 404);
+    if (old.posted) return fail(POSTED_MSG);
     const s = normalizeSlip(await req.json().catch(() => null));
     const v = await ensureVendor(db, { name: s.vendor_name, bizNo: s.biz_no, kind: s.kind });
     const { data, error: e } = await db
@@ -57,6 +60,7 @@ export async function DELETE(_req, { params }) {
     const db = sb();
     const old = await load(db, params.id);
     if (!old) return json({ ok: true });
+    if (old.posted) return fail(POSTED_MSG);
     const { error: e } = await db.from('slips').delete().eq('id', params.id);
     if (e) throw e;
     const paths = (old.attachments || []).map((a) => a.path).filter(Boolean);
