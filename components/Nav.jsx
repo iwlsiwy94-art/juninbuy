@@ -11,7 +11,7 @@ export default function Nav({ user }) {
     ['/import', '엑셀 가져오기'],
     ['/summary', '집계'],
     ['/posting', '회계 반영'],
-    ['/prices', '단가 관리'],
+    ['/items', '품목 관리'],
     ['/vendors', '등록 업체'],
   ];
   if (user.role === 'admin') links.push(['/admin', '계정·회사 관리']);

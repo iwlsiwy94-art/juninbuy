@@ -1,6 +1,6 @@
 import { sb } from '@/lib/supabase';
 import { requireUser, json, fail, serverError } from '@/lib/auth';
-import { normalizeSlip, ensureVendor, InputError } from '@/lib/slips';
+import { normalizeSlip, ensureVendor, ensureItems, InputError } from '@/lib/slips';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -42,6 +42,7 @@ export async function POST(req) {
       const { error: e } = await db.from('slips').insert(toInsert.slice(i, i + 200));
       if (e) throw e;
     }
+    await ensureItems(db, toInsert.flatMap((r) => r.items));
     return json({ inserted: toInsert.length, skipped, invalid: bad });
   } catch (e) {
     return serverError(e);

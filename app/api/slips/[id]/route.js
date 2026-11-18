@@ -1,6 +1,6 @@
 import { sb, BUCKET } from '@/lib/supabase';
 import { requireUser, json, fail, serverError } from '@/lib/auth';
-import { normalizeSlip, ensureVendor, userNames, InputError } from '@/lib/slips';
+import { normalizeSlip, ensureVendor, ensureItems, userNames, InputError } from '@/lib/slips';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +42,7 @@ export async function PUT(req, { params }) {
       .select('*')
       .single();
     if (e) throw e;
+    await ensureItems(db, s.items);
     // 수정하면서 뺀 원본 파일은 보관함에서도 지웁니다.
     const keep = new Set(s.attachments.map((a) => a.path));
     const removed = (old.attachments || []).map((a) => a.path).filter((p) => p && !keep.has(p));

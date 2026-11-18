@@ -5,7 +5,7 @@ import { api } from '@/components/api';
 import { KindPill } from '@/components/bits';
 import { useUser, canEdit } from '@/components/UserContext';
 import { toNum, vatOf, won, pad, itemSummary, totalsOf } from '@/lib/util';
-import { findPrice } from '@/lib/accounting';
+import { lookupPrice } from '@/lib/accounting';
 
 // 엑셀 제목 줄을 보고 열을 자동으로 맞추는 규칙 (위에서부터 먼저 맞춤)
 const FIELDS = [
@@ -50,7 +50,7 @@ function guessMap(headers) {
   return map;
 }
 
-function group(rows, headerRow, map, defKind, autoVat, prices) {
+function group(rows, headerRow, map, defKind, autoVat, prices, master) {
   let priced = 0;
   const get = (row, k) => (map[k] == null ? '' : row[map[k]]);
   const groups = new Map();
@@ -71,7 +71,7 @@ function group(rows, headerRow, map, defKind, autoVat, prices) {
     let supply = toNum(get(row, 'supply')), vat = toNum(get(row, 'vat'));
     // 단가·금액이 모두 비어 있으면 단가표에서 찾아 채움
     if (price == null && supply == null && total == null && name) {
-      const hit = findPrice(prices, { kind, vendorName: vendor, name, spec: String(get(row, 'spec') ?? '').trim(), date });
+      const hit = lookupPrice(prices, master, { kind, vendorName: vendor, name, spec: String(get(row, 'spec') ?? '').trim(), date });
       if (hit) { price = Number(hit.price); priced++; }
     }
     if (supply == null && qty != null && price != null) supply = Math.round(qty * price);
@@ -106,10 +106,14 @@ export default function ImportPage() {
   const [busy, setBusy] = useState(false);
 
   const [prices, setPrices] = useState([]);
-  useEffect(() => { api('/api/prices').then((d) => setPrices(d.prices || [])).catch(() => {}); }, []);
+  const [master, setMaster] = useState([]);
+  useEffect(() => {
+    api('/api/prices').then((d) => setPrices(d.prices || [])).catch(() => {});
+    api('/api/items').then((d) => setMaster(d.items || [])).catch(() => {});
+  }, []);
 
   const headers = (rows[headerRow] || []).map((h) => String(h ?? '').trim());
-  const result = useMemo(() => (rows.length ? group(rows, headerRow, map, defKind, autoVat, prices) : { groups: [], skipped: 0, priced: 0 }), [rows, headerRow, map, defKind, autoVat, prices]);
+  const result = useMemo(() => (rows.length ? group(rows, headerRow, map, defKind, autoVat, prices, master) : { groups: [], skipped: 0, priced: 0 }), [rows, headerRow, map, defKind, autoVat, prices, master]);
 
   if (!canEdit(user)) return <p className="note">조회자 계정은 가져오기를 할 수 없습니다.</p>;
 
@@ -212,7 +216,7 @@ export default function ImportPage() {
       {wb && ready && (
         <>
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="status">명세서 <b>{result.groups.length}건</b>(품목 {result.groups.reduce((a, g) => a + g.items.length, 0)}줄)으로 묶었습니다.{result.skipped ? ` 일자·거래처가 없어 건너뛴 줄 ${result.skipped}개.` : ''}{result.priced ? ` 단가가 비어 단가표로 채운 품목 ${result.priced}개.` : ''}</span>
+            <span className="status">명세서 <b>{result.groups.length}건</b>(품목 {result.groups.reduce((a, g) => a + g.items.length, 0)}줄)으로 묶었습니다.{result.skipped ? ` 일자·거래처가 없어 건너뛴 줄 ${result.skipped}개.` : ''}{result.priced ? ` 단가가 비어 품목 관리·단가표로 채운 품목 ${result.priced}개.` : ''}</span>
             <div className="row" style={{ alignItems: 'center' }}>
               <label className="check"><input type="checkbox" checked={skipDup} onChange={(e) => setSkipDup(e.target.checked)} /> 이미 등록된 것과 같은 건(구분·일자·거래처·합계 일치)은 건너뛰기</label>
               <button className="btn primary" type="button" disabled={busy || !result.groups.length} onClick={doImport}>{busy ? '등록 중…' : '가져오기'}</button>

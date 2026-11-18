@@ -1,6 +1,6 @@
 import { sb } from '@/lib/supabase';
 import { requireUser, json, fail, serverError } from '@/lib/auth';
-import { normalizeSlip, ensureVendor, userNames, InputError } from '@/lib/slips';
+import { normalizeSlip, ensureVendor, ensureItems, userNames, InputError } from '@/lib/slips';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +41,7 @@ export async function POST(req) {
       .select('*')
       .single();
     if (e) throw e;
+    await ensureItems(db, s.items);
     return json({ slip: data });
   } catch (e) {
     if (e instanceof InputError) return fail(e.message);
